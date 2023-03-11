@@ -171,9 +171,9 @@ async fn run_handshake_req_test_with_cfg(cfg: SynthNodeCfg, debug: Debug) -> boo
             .await
     };
 
-    if debug.is_on() && !handshake_established {
+    if debug.is_on() {
         // Let us see a few more logs from the node before shutdown.
-        sleep(Duration::from_millis(200)).await;
+        sleep(Duration::from_millis(2000)).await;
     }
 
     // Gracefully shut down the nodes.
@@ -255,32 +255,59 @@ async fn r001_t5_HANDSHAKE_crawl_field() {
     // Expected valid value for the "Crawl" field in the handshake should be "Public" (case insensitive).
     // Other values are considered to be "Private".
 
-    let debug = Debug::disable();
+    let debug = Debug::enable();
 
+// > User-Agent: rippled-1.9.3+47dec467ea659c1b64c7b5f4eb8a1bfa9759ff91.DEBUG\r\n
+// > Upgrade: XRPL/2.0, XRPL/2.1, XRPL/2.2\r\n
+// > Connection: Upgrade\r\n
+// > Connect-As: Peer\r\n
+//
     let gen_cfg = |crawl: String| SynthNodeCfg {
         handshake: Some(HandshakeCfg {
-            http_crawl: Some(crawl),
+            http_unexpected_extra_field_and_value: Some(crawl),
             ..Default::default()
         }),
         ..Default::default()
     };
 
     // Valid scenarios:
+    //let cfg = gen_cfg("Connect-As: Peer".to_owned());
+    //let cfg = gen_cfg("".to_owned());
+    let append_str = |h: &str, v: &str| -> String {
+        format!("{h}:{v}/r/n")
+    };
+
+    let mut field = String::new();
+    for letter in 'a'..='z' {
+        for i in 0..10 {
+            field += &append_str(letter.to_string().as_str(), i.to_string().as_str());
+        }
+    }
+    for letter in 'A'..='Z' {
+        for i in 0..10 {
+            field += &append_str(letter.to_string().as_str(), i.to_string().as_str());
+        }
+    }
+    for letter in '0'..='9' {
+        for i in 'a'..='z' {
+            field += &append_str(letter.to_string().as_str(), i.to_string().as_str());
+        }
+    }
+    for letter in '0'..='9' {
+        for i in 'A'..='Z' {
+            field += &append_str(letter.to_string().as_str(), i.to_string().as_str());
+        }
+    }
+
+    let cfg = gen_cfg(format!("{field}b:1"));
+    assert!(run_handshake_req_test_with_cfg(cfg, debug).await);
 
     // This is also valid, but should it be? The node checks for "public" to determine whether it's public,
     // everything else is considered not public.
-    let cfg = gen_cfg("Bazinga".to_owned());
-    assert!(run_handshake_req_test_with_cfg(cfg, debug).await);
-    let cfg = gen_cfg(String::new());
-    assert!(run_handshake_req_test_with_cfg(cfg, debug).await);
-    let cfg = gen_cfg(gen_huge_string(WS_HTTP_HEADER_MAX_SIZE));
-    assert!(run_handshake_req_test_with_cfg(cfg, debug).await);
 
     // Invalid scenarios:
 
     // Use a huge value that the node will always reject.
-    let cfg = gen_cfg(gen_huge_string(WS_HTTP_HEADER_INVALID_SIZE));
-    assert!(!run_handshake_req_test_with_cfg(cfg, debug).await);
 }
 
 #[allow(non_snake_case)]

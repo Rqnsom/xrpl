@@ -245,6 +245,9 @@ impl Handshake for InnerNode {
                 };
 
                 req_header("GET / HTTP/1.1".into());
+                if let Some(ref header) = hs_cfg.http_unexpected_extra_field_and_value {
+                    req_header(header.clone())
+                };
                 req_header(format!("User-Agent: {}", hs_cfg.http_ident));
                 req_header(format!("Upgrade: {}", hs_cfg.http_upgrade_req));
                 req_header(format!("Connection: {}", hs_cfg.http_connection));
@@ -263,9 +266,6 @@ impl Handshake for InnerNode {
                 };
                 if let Some(ref ledger) = hs_cfg.http_prev_ledger {
                     req_header(format!("Previous-Ledger: {ledger}"))
-                };
-                if let Some(ref header) = hs_cfg.http_unexpected_extra_field_and_value {
-                    req_header(header.clone())
                 };
                 req_header("".into()); // An HTTP header ends with '\r\n'
 
